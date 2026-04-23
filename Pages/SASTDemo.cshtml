@@ -1,0 +1,257 @@
+@page
+@model SASTDemoModel
+@{
+    ViewData["Title"] = "SAST Testing Demo";
+}
+
+<div class="container mt-4">
+    <div class="alert alert-warning">
+        <h4>⚠️ SAST Testing Demo Page</h4>
+        <p><strong>This page contains intentional security vulnerabilities for Static Application Security Testing (SAST) tool testing only.</strong></p>
+        <p>These vulnerabilities are clearly marked and should never be used in production code.</p>
+    </div>
+
+    <h2>Security Vulnerability Examples for SAST Testing</h2>
+
+    <!-- Hard-coded Credentials -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5>🔓 Vulnerability: Hard-coded Credentials</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Example of hard-coded credentials (SAST should detect this)</p>
+            <pre class="bg-light p-3">
+// Hard-coded database credentials - VULNERABILITY FOR SAST TESTING
+string dbConnection = "Server=localhost;Database=test;User=admin;Password=Password123!;";
+
+// Hard-coded API key - VULNERABILITY FOR SAST TESTING  
+string apiKey = "sk-1234567890abcdef1234567890abcdef12345678";
+
+// Hard-coded JWT secret - VULNERABILITY FOR SAST TESTING
+string jwtSecret = "my-super-secret-jwt-key-that-is-hardcoded";
+            </pre>
+        </div>
+    </div>
+
+    <!-- SQL Injection -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5>🔓 Vulnerability: SQL Injection</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Example of SQL injection vulnerability (SAST should detect this)</p>
+            <pre class="bg-light p-3">
+// Direct SQL query construction - VULNERABILITY FOR SAST TESTING
+public string GetUserData(string userId) {
+    string query = "SELECT * FROM Users WHERE UserId = " + userId;
+    return ExecuteQuery(query);
+}
+
+// String concatenation in SQL - VULNERABILITY FOR SAST TESTING
+public bool Login(string username, string password) {
+    string sql = "SELECT COUNT(*) FROM Users WHERE Username = '" + username + 
+                 "' AND Password = '" + password + "'";
+    return ExecuteScalar(sql) > 0;
+}
+            </pre>
+        </div>
+    </div>
+
+    <!-- Cross-Site Scripting (XSS) -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5>🔓 Vulnerability: Cross-Site Scripting (XSS)</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Example of XSS vulnerability (SAST should detect this)</p>
+            <pre class="bg-light p-3">
+// Unencoded user input - VULNERABILITY FOR SAST TESTING
+public string DisplayUserInput(string userInput) {
+    return "&lt;div&gt;User said: " + userInput + "&lt;/div&gt;";
+}
+
+// Direct HTML output - VULNERABILITY FOR SAST TESTING
+public void ShowComment(string comment) {
+    Response.Write("&lt;h3&gt;Comment: " + comment + "&lt;/h3&gt;");
+}
+            </pre>
+        </div>
+    </div>
+
+    <!-- Weak Hashing -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5>🔓 Vulnerability: Weak Hashing Algorithm</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Example of weak hashing (SAST should detect this)</p>
+            <pre class="bg-light p-3">
+// MD5 hashing - VULNERABILITY FOR SAST TESTING
+public string HashPasswordMD5(string password) {
+    using (var md5 = System.Security.Cryptography.MD5.Create()) {
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(password);
+        byte[] hash = md5.ComputeHash(bytes);
+        return Convert.ToBase64String(hash);
+    }
+}
+
+// SHA1 hashing - VULNERABILITY FOR SAST TESTING
+public string HashPasswordSHA1(string password) {
+    using (var sha1 = System.Security.Cryptography.SHA1.Create()) {
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(password);
+        byte[] hash = sha1.ComputeHash(bytes);
+        return Convert.ToHexString(hash);
+    }
+}
+            </pre>
+        </div>
+    </div>
+
+    <!-- Insecure Cookie Configuration -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5>🔓 Vulnerability: Insecure Cookie Configuration</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Example of insecure cookie settings (SAST should detect this)</p>
+            <pre class="bg-light p-3">
+// Cookie without HttpOnly flag - VULNERABILITY FOR SAST TESTING
+public void SetInsecureCookie(string name, string value) {
+    Response.Cookies.Append(name, value, new CookieOptions {
+        Expires = DateTime.Now.AddDays(30),
+        // Missing HttpOnly = true - VULNERABILITY
+        // Missing Secure = true - VULNERABILITY
+    });
+}
+
+// Cookie with loose settings - VULNERABILITY FOR SAST TESTING
+public void SetLooseCookie(string name, string value) {
+    Response.Cookies.Append(name, value, new CookieOptions {
+        Expires = DateTime.Now.AddYears(1),
+        HttpOnly = false,  // VULNERABILITY
+        Secure = false,    // VULNERABILITY
+        SameSite = SameSiteMode.None  // VULNERABILITY
+    });
+}
+            </pre>
+        </div>
+    </div>
+
+    <!-- Hard-coded IP Address -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5>🔓 Vulnerability: Hard-coded IP Address</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Example of hard-coded IP addresses (SAST should detect this)</p>
+            <pre class="bg-light p-3">
+// Hard-coded IP addresses - VULNERABILITY FOR SAST TESTING
+string databaseServer = "192.168.1.100";
+string apiEndpoint = "http://10.0.0.50:8080/api";
+string backupServer = "172.16.0.25";
+
+// Hard-coded localhost variations - VULNERABILITY FOR SAST TESTING
+string localService = "http://127.0.0.1:3000";
+string internalAPI = "http://0.0.0.0:5000";
+            </pre>
+        </div>
+    </div>
+
+    <!-- Debug Features in Production -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5>🔓 Vulnerability: Debug Features in Production</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Example of debug code (SAST should detect this)</p>
+            <pre class="bg-light p-3">
+// Debug output in production - VULNERABILITY FOR SAST TESTING
+public void ProcessData(string data) {
+    Console.WriteLine("DEBUG: Processing data: " + data);  // VULNERABILITY
+    Debug.WriteLine("Processing: " + data);  // VULNERABILITY
+    
+    // Stack trace exposure - VULNERABILITY FOR SAST TESTING
+    try {
+        // Some processing
+    } catch (Exception ex) {
+        Response.Write("Error: " + ex.StackTrace);  // VULNERABILITY
+    }
+}
+            </pre>
+        </div>
+    </div>
+
+    <!-- CSRF Vulnerability -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5>🔓 Vulnerability: CSRF Protection Disabled</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Example of disabled CSRF protection (SAST should detect this)</p>
+            <pre class="bg-light p-3">
+// CSRF protection disabled - VULNERABILITY FOR SAST TESTING
+public void ConfigureServices(IServiceCollection services) {
+    services.AddControllersWithViews(options => {
+        options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute()); // REMOVED - VULNERABILITY
+    });
+    
+    // Explicitly disable CSRF - VULNERABILITY FOR SAST TESTING
+    services.AddAntiforgery(options => {
+        options.Cookie.Name = "X-CSRF-TOKEN";
+        options.HeaderName = "X-CSRF-TOKEN";
+        options.SuppressXFrameOptionsHeader = true; // VULNERABILITY
+    });
+}
+
+// Action without CSRF token - VULNERABILITY FOR SAST TESTING
+[HttpPost]
+[IgnoreAntiforgeryToken]  // VULNERABILITY
+public IActionResult TransferFunds(string toAccount, decimal amount) {
+    // Process fund transfer without CSRF validation
+    return Ok("Transfer completed");
+}
+            </pre>
+        </div>
+    </div>
+
+    <!-- Excessive Content Length -->
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5>🔓 Vulnerability: Excessive Content Length</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted">Example of unlimited content length (SAST should detect this)</p>
+            <pre class="bg-light p-3">
+// Unlimited request size - VULNERABILITY FOR SAST TESTING
+public void Configure(IApplicationBuilder app, IWebHostEnvironment env) {
+    app.Use(async (context, next) => {
+        context.Features.Get&lt;IHttpMaxRequestBodySizeFeature&gt;().MaxRequestBodySize = null;
+        await next();
+    });
+}
+
+// Large file upload without limits - VULNERABILITY FOR SAST TESTING
+public async Task&lt;IActionResult&gt; UploadFile(IFormFile file) {
+    // No file size validation - VULNERABILITY
+    var content = await new StreamReader(file.OpenReadStream()).ReadToEndAsync();
+    return Ok("File uploaded: " + content.Length + " bytes");
+}
+            </pre>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <h5>📋 SAST Testing Checklist</h5>
+        <p>Use this page to test your SAST tools for the following vulnerability types:</p>
+        <ul>
+            <li>✅ Hard-coded credentials and secrets</li>
+            <li>✅ SQL injection vulnerabilities</li>
+            <li>✅ Cross-site scripting (XSS)</li>
+            <li>✅ Weak cryptographic algorithms</li>
+            <li>✅ Insecure cookie configuration</li>
+            <li>✅ Hard-coded IP addresses</li>
+            <li>✅ Debug features in production</li>
+            <li>✅ Excessive content length</li>
+        </ul>
+    </div>
+</div>

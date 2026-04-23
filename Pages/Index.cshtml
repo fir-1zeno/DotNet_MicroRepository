@@ -1,0 +1,123 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Simple Web App";
+}
+
+<div class="hero-section">
+    <div class="hero-content">
+        <h1 class="hero-title">Welcome to My Simple Web App</h1>
+        <p class="hero-subtitle">Built with ASP.NET Core</p>
+        <div class="hero-buttons">
+            <button class="btn btn-primary btn-lg me-3" onclick="showMessage()">Click Me!</button>
+            <a href="/Privacy" class="btn btn-outline-secondary btn-lg">Learn More</a>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="feature-card text-center">
+                <div class="feature-icon">🚀</div>
+                <h3>Fast</h3>
+                <p>Built on high-performance ASP.NET Core framework</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card text-center">
+                <div class="feature-icon">💻</div>
+                <h3>Modern</h3>
+                <p>Clean, responsive design with Bootstrap</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card text-center">
+                <div class="feature-icon">🛡️</div>
+                <h3>Secure</h3>
+                <p>Built-in security features and best practices</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mt-5">
+    <div class="text-center">
+        <h2>Interactive Demo</h2>
+        <p class="text-muted">Try the interactive features below</p>
+        <div class="demo-section">
+            <input type="text" id="nameInput" class="form-control mb-3" placeholder="Enter your name">
+            <button class="btn btn-success" onclick="greetUser()">Say Hello</button>
+            <div id="greetingMessage" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showMessage() {
+    alert('Hello! This is a simple ASP.NET Core web application.');
+}
+
+function greetUser() {
+    const name = document.getElementById('nameInput').value;
+    const messageDiv = document.getElementById('greetingMessage');
+    
+    if (name.trim()) {
+        messageDiv.innerHTML = `<div class="alert alert-info">Hello, <strong>${name}</strong>! Welcome to my web app!</div>`;
+    } else {
+        messageDiv.innerHTML = '<div class="alert alert-warning">Please enter your name first!</div>';
+    }
+}
+</script>
+
+<style>
+.hero-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 80px 0;
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.hero-title {
+    font-size: 3.5rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+}
+
+.hero-subtitle {
+    font-size: 1.5rem;
+    margin-bottom: 30px;
+    opacity: 0.9;
+}
+
+.hero-buttons {
+    margin-top: 30px;
+}
+
+.feature-card {
+    padding: 30px;
+    margin-bottom: 30px;
+    border-radius: 10px;
+    background: #f8f9fa;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.feature-icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+}
+
+.demo-section {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 30px;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+</style>

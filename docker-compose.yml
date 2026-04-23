@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  simplewebapp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+      - "8443:443"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:80
+    container_name: simple-web-app
+    restart: unless-stopped
+    networks:
+      - webapp-network
+
+networks:
+  webapp-network:
+    driver: bridge
