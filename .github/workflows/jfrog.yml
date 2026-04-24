@@ -84,7 +84,7 @@ jobs:
       # ---------------------------
       - name: 🕵️‍♂️ JFrog SAST Scan
         # ✅ ADDED: Scans the source code for SAST, Secrets, and IaC vulnerabilities
-        run: jf scan
+        run: jf scan .
 
       # ---------------------------
       # 6. Configure JFrog
