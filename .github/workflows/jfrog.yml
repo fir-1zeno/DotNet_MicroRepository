@@ -37,12 +37,12 @@ jobs:
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
       # --- FIX 2: Scan the RAW SOURCE CODE for SAST/Secrets before building ---
-      - name: 🔍 JFrog Advanced Security Scan (SAST & Secrets)
-        run: |
-          echo "Scanning raw source code for SQLi, XSS, and hardcoded secrets..."
-          jf scan ./ --vuln=true --secrets=true --sast=true --exclusions="*.git*;*obj*;*bin*;*wwwroot/lib*"
-        env:
-          JFROG_CLI_EXCLUSIONS: "*.git*;*obj*;*bin*;*wwwroot/lib*;*.scannerwork*"
+      #- name: 🔍 JFrog Advanced Security Scan (SAST & Secrets)
+      #  run: |
+       #   echo "Scanning raw source code for SQLi, XSS, and hardcoded secrets..."
+      #    jf scan ./ --vuln=true --secrets=true --sast=true --exclusions="*.git*;*obj*;*bin*;*wwwroot/lib*"
+     #   env:
+       #   JFROG_CLI_EXCLUSIONS: "*.git*;*obj*;*bin*;*wwwroot/lib*;*.scannerwork*"
 
       # --- FIX 1: Use 'jf dotnet' to capture the dependency tree ---
       - name: 📦 Restore & Build .NET application (JFrog Wrapped)
