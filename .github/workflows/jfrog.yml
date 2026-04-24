@@ -1,66 +1,58 @@
-name: JFrog Security Scan & Upload
+name: JFrog Basic .NET Flow
 
 on:
   push:
-    branches: [ "sit" ]
-  pull_request:
     branches: [ "sit" ]
   workflow_dispatch:
 
 env:
   JFROG_URL: 'https://trial9cn0pa.jfrog.io'
-  ARTIFACTORY_REPO: 'dotnet-generic-local'
+  ARTIFACTORY_REPO: 'dotnet-generic-local' 
   BUILD_NAME: 'SIT-simple-web-app'
   XRAY_WATCH: 'firdaus-watches'
+  JF_USER: 'firdaus.ghazali@izeno.com'
 
 jobs:
   build-and-scan:
     runs-on: ubuntu-latest
-    # Removed the incorrect environment secret line
-
     steps:
-      - name: 🏗️ Checkout repository
+      - name: 🏗️ 1. Checkout repository
         uses: actions/checkout@v4
 
-      - name: ☕ Setup .NET SDK
+      - name: ☕ 2. Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: ⚙️ Setup JFrog CLI
+      - name: ⚙️ 3. Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ env.JFROG_URL }}
           JF_USER: ${{ secrets.JFROG_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
-      # --- STEP 1: SAST & SECRETS SCAN (Finds your intentional code bugs) ---
-      #- name: 🔍 Scan Source Code (SAST)
-      #  run: |
-      #    echo "Scanning for SQLi, XSS, and hardcoded secrets..."
-      #    jf scan ./ --sast=true --secrets=true --exclusions="*.git*,*obj*,*bin*,*wwwroot/lib*"
-
-      # --- STEP 2: SCA AUDIT (Finds vulnerable NuGet packages) ---
-      - name: 📦 Audit Dependencies (SCA)
+      - name: 📦 4. Restore & Build
         run: |
-          echo "Restoring project to generate dependency graph..."
+          # Standard .NET commands
           dotnet restore SimpleWebApp.csproj
-          echo "Running Xray Audit..."
-          # This replaces 'build-scan' and is much more reliable for .NET
-          jf audit --dotnet --fail=true --watches=${{ env.XRAY_WATCH }}
-
-      # --- STEP 3: BUILD & UPLOAD ---
-      - name: 🛠️ Build and Upload Artifacts
-        run: |
           dotnet build SimpleWebApp.csproj --no-restore --configuration Release
           dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
-          
+
+      - name: 🔍 5. Xray Dependency Audit
+        # This is the "Basic" way to get Xray results without needing a NuGet proxy.
+        # It scans your project file and checks the libraries against Xray.
+        run: |
+          jf audit --dotnet --fail=true --watches=${{ env.XRAY_WATCH }}
+
+      - name: 🚀 6. Upload to Artifactory
+        # This pushes your final files into the 'dotnet-generic-local' repo
+        run: |
           jf rt upload "publish_output/*" \
             "${{ env.ARTIFACTORY_REPO }}/SimpleWebApp/${{ github.run_number }}/" \
             --build-name=${{ env.BUILD_NAME }} \
             --build-number=${{ github.run_number }}
 
-      - name: 📊 Publish Build Info
+      - name: 📊 7. Publish Build Info
         if: success() 
         run: |
           jf rt build-collect-env ${{ env.BUILD_NAME }} ${{ github.run_number }}
@@ -72,5 +64,5 @@ jobs:
           echo "========================================="
           echo "❌ SECURITY GATE: FAILED ❌"
           echo "========================================="
-          echo "Vulnerabilities or Secrets were detected!"
+          echo "Vulnerabilities were detected by JFrog Xray!"
           exit 1
