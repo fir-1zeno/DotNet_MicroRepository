@@ -2,9 +2,9 @@ name: .NET Build and Docker Check
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "sit" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "sit" ]
 
 jobs:
   build:
