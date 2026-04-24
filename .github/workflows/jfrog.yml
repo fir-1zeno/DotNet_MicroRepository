@@ -24,45 +24,43 @@ jobs:
       # ---------------------------
       - name: 🏗️ Checkout repository
         uses: actions/checkout@v4
-
-      # ---------------------------
-      # 2. SonarQube (RUN FIRST)
-      # ---------------------------
-      - name: ☕ Setup Java (Sonar requirement)
-        uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: 17
-
-      - name: 📥 Install SonarScanner
-        run: |
-          wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-          unzip sonar-scanner-cli-5.0.1.3006-linux.zip
-          echo "$(pwd)/sonar-scanner-5.0.1.3006-linux/bin" >> $GITHUB_PATH
-
-      - name: 🔍 Run SonarQube Scan (Security + Code Quality)
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: |
-          sonar-scanner \
-            -Dsonar.projectKey=vuln-dotnet-app \
-            -Dsonar.sources=. \
-            -Dsonar.host.url=$SONAR_HOST_URL \
-            -Dsonar.login=$SONAR_TOKEN
-
-      # (Optional but recommended)
-      # Wait for Quality Gate result (fail early if bad)
-      - name: 🚨 SonarQube Quality Gate
-        run: |
-          echo "Add Quality Gate check if needed (can integrate via API or Sonar Action)"
+          fetch-depth: 0   # ✅ fix Sonar warning
 
       # ---------------------------
-      # 3. Setup .NET
+      # 2. Setup .NET (MUST BE FIRST)
       # ---------------------------
       - name: ☕ Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
+
+      # ---------------------------
+      # 3. SonarQube (RUN FIRST LOGICALLY)
+      # ---------------------------
+      - name: Install SonarScanner for .NET
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Add .NET tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: 🔍 SonarQube Begin
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner begin \
+            /k:"vuln-dotnet-app" \
+            /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" \
+            /d:sonar.token="$SONAR_TOKEN"
+
+      - name: 🏗️ Build Project (Sonar captures this)
+        run: dotnet build SimpleWebApp.csproj
+
+      - name: ✅ SonarQube End
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
 
       # ---------------------------
       # 4. Setup JFrog CLI
@@ -81,7 +79,7 @@ jobs:
         run: jf dotnet-config --repo-resolve=${{ env.NUGET_REPO }}
 
       # ---------------------------
-      # 6. Build
+      # 6. Build (JFrog tracking)
       # ---------------------------
       - name: 📦 Build & Capture "Recipe"
         run: |
