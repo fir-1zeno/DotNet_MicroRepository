@@ -13,11 +13,11 @@ env:
   NUGET_REPO: 'nuget-local' 
   BUILD_NAME: 'SIT-simple-web-app'
   XRAY_WATCH: 'firdaus-watches'
-  JF_USER: 'firdaus.ghazali@izeno.com'
 
 jobs:
   build-and-scan:
     runs-on: ubuntu-latest
+    environment: JFROG_PASSWORD
     steps:
       - name: 🏗️ 1. Checkout repository
         uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ env.JFROG_URL }}
-          JF_USER: ${{ env.JF_USER }}
+          JF_USER: ${{ secrets.JFROG_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
       - name: ⚙️ 4. Configure JFrog .NET
