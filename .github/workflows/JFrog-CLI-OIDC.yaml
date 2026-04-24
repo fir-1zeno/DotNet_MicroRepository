@@ -17,9 +17,9 @@ jobs:
       - name: Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
         env:
-          JF_URL: ${{ vars.JF_URL }}
+          JF_URL: https://trial9cn0pa.jfrog.io
         with:
-          oidc-provider-name: ${OIDC_PROVIDER_NAME} # <owner>/<repo>@githubs
+          oidc-provider-name: fir-1zeno/DotNet_MicroRepository@github
 
       - name: Run JFrog CLI
         run: |
