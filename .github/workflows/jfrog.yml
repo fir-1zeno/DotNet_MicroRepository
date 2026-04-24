@@ -2,7 +2,7 @@ name: SonarQube + JFrog Artifact Scan & Upload
 
 on:
   push:
-    branches: [ "sit" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 env:
