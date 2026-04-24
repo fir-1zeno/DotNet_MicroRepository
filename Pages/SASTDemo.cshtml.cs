@@ -82,6 +82,14 @@ namespace SimpleWebApp.Pages
             });
         }
 
+        public void sensitiveRandom()
+        {
+            var random = new Random(); // Sensitive use of Random
+            byte[] data = new byte[16];
+            random.NextBytes(data);
+            return BitConverter.ToString(data); // Check if this value is used for hashing or encryption
+        }
+
         // Insecure cookie - VULNERABILITY FOR SAST TESTING
         public void SetLooseCookie(string name, string value)
         {
