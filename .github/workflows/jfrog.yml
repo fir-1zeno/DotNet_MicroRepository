@@ -31,7 +31,7 @@ jobs:
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ env.JFROG_URL }}
-          JF_USER: ${{ secrets.JFROG_USER }}
+          JF_USER: ${{ env.JF_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
       - name: ⚙️ 4. Configure JFrog .NET
