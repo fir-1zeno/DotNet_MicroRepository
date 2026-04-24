@@ -41,7 +41,7 @@ namespace SimpleWebApp.Pages
         }
 
         // XSS vulnerability - VULNERABILITY FOR SAST TESTING
-        public void ShowComment(string comment)
+        public int ShowComment(string comment)
         {
             // In ASP.NET Core, we need to use different approach for Response.Write
             // This is still vulnerable as it outputs unencoded content
