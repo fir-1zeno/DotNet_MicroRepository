@@ -40,7 +40,8 @@ jobs:
       - name: 🔍 JFrog Advanced Security Scan (SAST & Secrets)
         run: |
           echo "Scanning raw source code for SQLi, XSS, and hardcoded secrets..."
-          jf scan ./ --vuln=true --secrets=true --sast=true
+          # Added exclusions to skip the heavy obj, bin, and wwwroot/lib folders
+          jf scan ./ --vuln=true --secrets=true --sast=true --exclusions="*obj/*;*bin/*;*wwwroot/lib/*;*.git/*"
 
       # --- FIX 1: Use 'jf dotnet' to capture the dependency tree ---
       - name: 📦 Restore & Build .NET application (JFrog Wrapped)
