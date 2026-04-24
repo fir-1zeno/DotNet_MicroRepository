@@ -1,4 +1,4 @@
-name: JFrog Artifact Scan & Upload
+name: SonarQube + JFrog Artifact Scan & Upload
 
 on:
   push:
@@ -7,66 +7,115 @@ on:
 
 env:
   JFROG_URL: 'https://trial9cn0pa.jfrog.io'
-  ARTIFACTORY_REPO: 'dotnet-generic-local' 
-  # Important: This should be a NuGet repo (Local, Remote, or Virtual) in JFrog
-  # to help the CLI map your dependencies.
-  NUGET_REPO: 'nuget-local' 
+  ARTIFACTORY_REPO: 'dotnet-generic-local'
+  NUGET_REPO: 'nuget-local'
   BUILD_NAME: 'SIT-simple-web-app'
   XRAY_WATCH: 'firdaus-watches'
+  SONAR_HOST_URL: 'http://3.0.10.146:9000'
 
 jobs:
   build-and-scan:
     runs-on: ubuntu-latest
     environment: JFROG_PASSWORD
+
     steps:
-      - name: 🏗️ 1. Checkout repository
+      # ---------------------------
+      # 1. Checkout
+      # ---------------------------
+      - name: 🏗️ Checkout repository
         uses: actions/checkout@v4
 
-      - name: ☕ 2. Setup .NET SDK
+      # ---------------------------
+      # 2. SonarQube (RUN FIRST)
+      # ---------------------------
+      - name: ☕ Setup Java (Sonar requirement)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: 📥 Install SonarScanner
+        run: |
+          wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+          unzip sonar-scanner-cli-5.0.1.3006-linux.zip
+          echo "$(pwd)/sonar-scanner-5.0.1.3006-linux/bin" >> $GITHUB_PATH
+
+      - name: 🔍 Run SonarQube Scan (Security + Code Quality)
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          sonar-scanner \
+            -Dsonar.projectKey=vuln-dotnet-app \
+            -Dsonar.sources=. \
+            -Dsonar.host.url=$SONAR_HOST_URL \
+            -Dsonar.login=$SONAR_TOKEN
+
+      # (Optional but recommended)
+      # Wait for Quality Gate result (fail early if bad)
+      - name: 🚨 SonarQube Quality Gate
+        run: |
+          echo "Add Quality Gate check if needed (can integrate via API or Sonar Action)"
+
+      # ---------------------------
+      # 3. Setup .NET
+      # ---------------------------
+      - name: ☕ Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: ⚙️ 3. Setup JFrog CLI
+      # ---------------------------
+      # 4. Setup JFrog CLI
+      # ---------------------------
+      - name: ⚙️ Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
         env:
           JF_URL: ${{ env.JFROG_URL }}
           JF_USER: ${{ secrets.JFROG_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
-      - name: ⚙️ 4. Configure JFrog .NET
-        # This tells the 'jf' tool which repo to use so it can record the "recipe"
+      # ---------------------------
+      # 5. Configure JFrog
+      # ---------------------------
+      - name: ⚙️ Configure JFrog .NET
         run: jf dotnet-config --repo-resolve=${{ env.NUGET_REPO }}
 
-      - name: 📦 5. Build & Capture "Recipe"
+      # ---------------------------
+      # 6. Build
+      # ---------------------------
+      - name: 📦 Build & Capture "Recipe"
         run: |
-          # We use 'jf dotnet' so the CLI can record the dependencies into the Build Info
           jf dotnet restore SimpleWebApp.csproj --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
           jf dotnet build SimpleWebApp.csproj --no-restore --configuration Release --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
-          
-          # Create the final folder for upload
+
           dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
 
-      - name: 🚀 6. Upload Artifact to Artifactory
+      # ---------------------------
+      # 7. Upload Artifact
+      # ---------------------------
+      - name: 🚀 Upload Artifact to Artifactory
         run: |
           jf rt upload "publish_output/*" \
             "${{ env.ARTIFACTORY_REPO }}/SimpleWebApp/${{ github.run_number }}/" \
             --build-name=${{ env.BUILD_NAME }} \
             --build-number=${{ github.run_number }}
 
-      - name: 📊 7. Publish Build Info & Scan Artifact
+      # ---------------------------
+      # 8. Xray Scan
+      # ---------------------------
+      - name: 📊 Publish Build Info & Scan
         run: |
-          # This sends the "Recipe" (manifest) to JFrog
           jf rt build-publish ${{ env.BUILD_NAME }} ${{ github.run_number }}
-          
-          # This tells Xray to scan the artifact based on that manifest
           jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
 
-      - name: 🚨 8. Security Gate
-        if: failure() 
+      # ---------------------------
+      # 9. Security Gate
+      # ---------------------------
+      - name: 🚨 Security Gate
+        if: failure()
         run: |
           echo "========================================="
           echo "❌ SECURITY GATE: FAILED ❌"
           echo "========================================="
-          echo "Vulnerabilities found in the artifact dependencies!"
+          echo "Issues found in SonarQube or Xray scan!"
           exit 1
