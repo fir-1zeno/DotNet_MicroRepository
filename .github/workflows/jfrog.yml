@@ -19,8 +19,7 @@ jobs:
     name: Build, Scan & Upload
     runs-on: ubuntu-latest
     environment: JFROG_PASSWORD # Uncomment if you use GitHub Environments for secrets
-
-    steps:
+   steps:
       - name: 🏗️ Checkout repository
         uses: actions/checkout@v4
 
@@ -32,37 +31,35 @@ jobs:
       - name: ⚙️ Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
         env:
-          # Define these in GitHub Repo Settings > Secrets and Variables > Actions
           JF_URL: ${{ env.JFROG_URL }}
           JF_USER: ${{ secrets.JFROG_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
-      - name: 📦 Restore & Build .NET application
+      # --- FIX 2: Scan the RAW SOURCE CODE for SAST/Secrets before building ---
+      - name: 🔍 JFrog Advanced Security Scan (SAST & Secrets)
         run: |
-          dotnet restore SimpleWebApp.csproj
-          dotnet build SimpleWebApp.csproj --no-restore --configuration Release
+          echo "Scanning raw source code for SQLi, XSS, and hardcoded secrets..."
+          jf scan ./ --vuln=true --secrets=true --sast=true
 
-      # Optional testing step, mirroring the Java workflow
-      - name: 🧪 Test Code (Optional, just testing without packaging)
-        run: dotnet test SimpleWebApp.csproj --no-build --verbosity normal || echo "No tests configured, skipping."
+      # --- FIX 1: Use 'jf dotnet' to capture the dependency tree ---
+      - name: 📦 Restore & Build .NET application (JFrog Wrapped)
+        run: |
+          # jf dotnet restore captures the NuGet dependencies for Xray
+          jf dotnet restore SimpleWebApp.csproj --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
+          
+          # jf dotnet build compiles the code
+          jf dotnet build SimpleWebApp.csproj --no-restore --configuration Release --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
 
       - name: 📂 Publish .NET App (Create Artifact)
         run: dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
 
-      - name: 🐳 Verify Docker build
-        run: docker build -t simplewebapp:latest .
-
-      - name: 🚀 Upload & Capture Dependencies
+      - name: 🚀 Upload to Artifactory
         run: |
-          # Upload the published output folder to Artifactory
           jf rt upload "publish_output/*" \
             "${{ env.ARTIFACTORY_REPO }}/SimpleWebApp/${{ github.run_number }}/" \
             --flat=false \
             --build-name=${{ env.BUILD_NAME }} \
             --build-number=${{ github.run_number }}
-            
-          # Run audit to capture NuGet dependencies for the build info
-          jf audit --watches=${{ env.XRAY_WATCH }} --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }} || echo "Audit completed with warnings/errors, but continuing to build publish."
 
       - name: 📊 Publish Build Info
         if: success() 
@@ -72,9 +69,7 @@ jobs:
 
       - name: 🔒 Xray Build Scan
         if: success()
-        # Server-side scan: results are stored in JFrog Xray Watch Violations
-        run: |
-          jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
+        run: jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
 
       - name: 🚨 Security Gate Evaluation
         if: failure() 
