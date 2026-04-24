@@ -1,4 +1,4 @@
-name: JFrog POC Scan
+name: JFrog Artifact Scan & Upload
 
 on:
   push:
@@ -6,40 +6,67 @@ on:
   workflow_dispatch:
 
 env:
-  JF_URL: 'https://trial9cn0pa.jfrog.io'
-  RT_REPO: 'dotnet-generic-local'
+  JFROG_URL: 'https://trial9cn0pa.jfrog.io'
+  ARTIFACTORY_REPO: 'dotnet-generic-local' 
+  # Important: This should be a NuGet repo (Local, Remote, or Virtual) in JFrog
+  # to help the CLI map your dependencies.
+  NUGET_REPO: 'nuget-local' 
   BUILD_NAME: 'SIT-simple-web-app'
   XRAY_WATCH: 'firdaus-watches'
   JF_USER: 'firdaus.ghazali@izeno.com'
 
 jobs:
-  poc-build-and-scan:
+  build-and-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: 🏗️ Checkout
+      - name: 🏗️ 1. Checkout repository
         uses: actions/checkout@v4
 
-      - name: ☕ Setup .NET
+      - name: ☕ 2. Setup .NET SDK
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: ⚙️ Setup JFrog CLI
+      - name: ⚙️ 3. Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
         env:
-          JF_URL: ${{ env.JF_URL }}
+          JF_URL: ${{ env.JFROG_URL }}
           JF_USER: ${{ secrets.JFROG_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
-      - name: 🔍 QUICK SCAN (The POC Part)
-        # This scans your project files and dependencies directly
-        run: jf scan . --format=table
+      - name: ⚙️ 4. Configure JFrog .NET
+        # This tells the 'jf' tool which repo to use so it can record the "recipe"
+        run: jf dotnet-config --repo-resolve=${{ env.NUGET_REPO }}
 
-      - name: 📦 Build and Upload
+      - name: 📦 5. Build & Capture "Recipe"
         run: |
-          # 1. Build the app
-          dotnet publish SimpleWebApp.csproj -c Release -o ./out
+          # We use 'jf dotnet' so the CLI can record the dependencies into the Build Info
+          jf dotnet restore SimpleWebApp.csproj --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
+          jf dotnet build SimpleWebApp.csproj --no-restore --configuration Release --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
           
-          # 2. Upload the 'out' folder to Artifactory
-          jf rt upload "out/" "${{ env.RT_REPO }}/${{ env.BUILD_NAME }}/${{ github.run_number }}/"
+          # Create the final folder for upload
+          dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
+
+      - name: 🚀 6. Upload Artifact to Artifactory
+        run: |
+          jf rt upload "publish_output/*" \
+            "${{ env.ARTIFACTORY_REPO }}/SimpleWebApp/${{ github.run_number }}/" \
+            --build-name=${{ env.BUILD_NAME }} \
+            --build-number=${{ github.run_number }}
+
+      - name: 📊 7. Publish Build Info & Scan Artifact
+        run: |
+          # This sends the "Recipe" (manifest) to JFrog
+          jf rt build-publish ${{ env.BUILD_NAME }} ${{ github.run_number }}
           
+          # This tells Xray to scan the artifact based on that manifest
+          jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
+
+      - name: 🚨 8. Security Gate
+        if: failure() 
+        run: |
+          echo "========================================="
+          echo "❌ SECURITY GATE: FAILED ❌"
+          echo "========================================="
+          echo "Vulnerabilities found in the artifact dependencies!"
+          exit 1
