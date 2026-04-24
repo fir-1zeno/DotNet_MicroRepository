@@ -47,10 +47,12 @@ jobs:
       # --- FIX 1: Use 'jf dotnet' to capture the dependency tree ---
       - name: 📦 Restore & Build .NET application (JFrog Wrapped)
         run: |
-          # jf dotnet restore captures the NuGet dependencies for Xray
-          jf dotnet restore SimpleWebApp.csproj --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
+          # 1. Create the config file for the dotnet wrapper
+          # Replace 'nuget-virtual' with the name of your NuGet repository in JFrog
+          jf dotnet-config --repo-resolve=nuget-virtual
           
-          # jf dotnet build compiles the code
+          # 2. Now jf dotnet will work
+          jf dotnet restore SimpleWebApp.csproj --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
           jf dotnet build SimpleWebApp.csproj --no-restore --configuration Release --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
 
       - name: 📂 Publish .NET App (Create Artifact)
