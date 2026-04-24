@@ -20,60 +20,61 @@ jobs:
     runs-on: ubuntu-latest
     environment: JFROG_PASSWORD # Uncomment if you use GitHub Environments for secrets
     
-  steps:
-    - name: 🏗️ Checkout repository
-      uses: actions/checkout@v4
+    steps:
+      - name: 🏗️ Checkout repository
+        uses: actions/checkout@v4
 
-     - name: ☕ Setup .NET SDK
-      uses: actions/setup-dotnet@v4
-      with:
-      dotnet-version: '10.0.x'
+      - name: ☕ Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
 
-    - name: ⚙️ Setup JFrog CLI
-      uses: jfrog/setup-jfrog-cli@v4
-      env:
-        JF_URL: ${{ env.JFROG_URL }}
-        JF_USER: ${{ secrets.JFROG_USER }}
-        JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
+      - name: ⚙️ Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ env.JFROG_URL }}
+          JF_USER: ${{ secrets.JFROG_USER }}
+          JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
+
       # --- FIX 2: Scan the RAW SOURCE CODE for SAST/Secrets before building ---
-    - name: 🔍 JFrog Advanced Security Scan (SAST & Secrets)
-      run: |
-        echo "Scanning raw source code for SQLi, XSS, and hardcoded secrets..."
-        jf scan ./ --vuln=true --secrets=true --sast=true
+      - name: 🔍 JFrog Advanced Security Scan (SAST & Secrets)
+        run: |
+          echo "Scanning raw source code for SQLi, XSS, and hardcoded secrets..."
+          jf scan ./ --vuln=true --secrets=true --sast=true
 
       # --- FIX 1: Use 'jf dotnet' to capture the dependency tree ---
-    - name: 📦 Restore & Build .NET application (JFrog Wrapped)
-      run: |
+      - name: 📦 Restore & Build .NET application (JFrog Wrapped)
+        run: |
           # jf dotnet restore captures the NuGet dependencies for Xray
           jf dotnet restore SimpleWebApp.csproj --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
           
           # jf dotnet build compiles the code
           jf dotnet build SimpleWebApp.csproj --no-restore --configuration Release --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
 
-    - name: 📂 Publish .NET App (Create Artifact)
-      run: dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
+      - name: 📂 Publish .NET App (Create Artifact)
+        run: dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
 
-    - name: 🚀 Upload to Artifactory
-      run: |
+      - name: 🚀 Upload to Artifactory
+        run: |
           jf rt upload "publish_output/*" \
             "${{ env.ARTIFACTORY_REPO }}/SimpleWebApp/${{ github.run_number }}/" \
             --flat=false \
             --build-name=${{ env.BUILD_NAME }} \
             --build-number=${{ github.run_number }}
 
-    - name: 📊 Publish Build Info
-      if: success() 
-      run: |
+      - name: 📊 Publish Build Info
+        if: success() 
+        run: |
           jf rt build-collect-env ${{ env.BUILD_NAME }} ${{ github.run_number }}
           jf rt build-publish ${{ env.BUILD_NAME }} ${{ github.run_number }}
 
-    - name: 🔒 Xray Build Scan
-      if: success()
-      run: jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
+      - name: 🔒 Xray Build Scan
+        if: success()
+        run: jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
 
-    - name: 🚨 Security Gate Evaluation
-      if: failure() 
-      run: |
+      - name: 🚨 Security Gate Evaluation
+        if: failure() 
+        run: |
           echo "========================================="
           echo "❌ SECURITY GATE: FAILED ❌"
           echo "========================================="
