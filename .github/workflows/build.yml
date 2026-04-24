@@ -1,0 +1,34 @@
+name: .NET Build and Docker Check
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore SimpleWebApp.csproj
+
+    - name: Build .NET application
+      run: dotnet build SimpleWebApp.csproj --no-restore --configuration Release
+
+    # Uncomment this if you add test projects in the future
+    # - name: Run tests
+    #   run: dotnet test --no-build --verbosity normal
+
+    - name: Verify Docker build
+      run: docker build -t simplewebapp:latest .
