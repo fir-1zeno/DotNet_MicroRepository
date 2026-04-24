@@ -9,8 +9,8 @@ on:
 
 env:
   JFROG_URL: 'https://trial9cn0pa.jfrog.io' # Ensure this is your correct JFrog URL
-  ARTIFACTORY_REPO: 'my-generic-local'   # UPDATE THIS: Change to your target Artifactory repository name
-  BUILD_NAME: 'firdaus-security-demo-dotnet'
+  ARTIFACTORY_REPO: 'dotnet-generic-local'   # UPDATE THIS: Change to your target Artifactory repository name
+  BUILD_NAME: 'SIT-simple-web-app'
   XRAY_WATCH: 'firdaus-watches'
   JF_USER: 'firdaus.ghazali@izeno.com'
 
@@ -18,7 +18,7 @@ jobs:
   build-and-scan:
     name: Build, Scan & Upload
     runs-on: ubuntu-latest
-    # environment: JFROG_PASSWORD # Uncomment if you use GitHub Environments for secrets
+    environment: JFROG_PASSWORD # Uncomment if you use GitHub Environments for secrets
 
     steps:
       - name: 🏗️ Checkout repository
