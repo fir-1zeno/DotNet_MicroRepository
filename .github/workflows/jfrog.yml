@@ -77,7 +77,7 @@ jobs:
           JF_USER: ${{ secrets.JFROG_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
           # ✅ ADDED: Required for JFrog to upload SAST results to GitHub Code Scanning
-          JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JF_GIT_TOKEN: ${{ secrets.HUB_TOKEN }}
 
       # ---------------------------
       # 5. JFrog SAST & Source Code Scan
