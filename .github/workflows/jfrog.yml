@@ -1,4 +1,4 @@
-name: .NET Build, Docker Check & JFrog Scan
+name: JFrog Security Scan & Upload
 
 on:
   push:
@@ -8,20 +8,20 @@ on:
   workflow_dispatch:
 
 env:
-  JFROG_URL: 'https://trial9cn0pa.jfrog.io' # Ensure this is your correct JFrog URL
-  ARTIFACTORY_REPO: 'dotnet-generic-local'   # UPDATE THIS: Change to your target Artifactory repository name
+  JFROG_URL: 'https://trial9cn0pa.jfrog.io'
+  ARTIFACTORY_REPO: 'dotnet-generic-local' # Generic repo for the .dlls
+  NUGET_REPO: 'nuget-local'              # Replace with your actual NuGet repo name
   BUILD_NAME: 'SIT-simple-web-app'
   XRAY_WATCH: 'firdaus-watches'
   JF_USER: 'firdaus.ghazali@izeno.com'
 
 jobs:
   build-and-scan:
-    name: Build, Scan & Upload
     runs-on: ubuntu-latest
-    environment: JFROG_PASSWORD # Uncomment if you use GitHub Environments for secrets
-    
+    environment: JFROG_PASSWORD
+
     steps:
-      - name: 🏗️ Checkout repository
+      - name: 🏗️ Checkout
         uses: actions/checkout@v4
 
       - name: ☕ Setup .NET SDK
@@ -36,33 +36,23 @@ jobs:
           JF_USER: ${{ secrets.JFROG_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
-      # --- FIX 2: Scan the RAW SOURCE CODE for SAST/Secrets before building ---
-      #- name: 🔍 JFrog Advanced Security Scan (SAST & Secrets)
-      #  run: |
-       #   echo "Scanning raw source code for SQLi, XSS, and hardcoded secrets..."
-      #    jf scan ./ --vuln=true --secrets=true --sast=true --exclusions="*.git*;*obj*;*bin*;*wwwroot/lib*"
-     #   env:
-       #   JFROG_CLI_EXCLUSIONS: "*.git*;*obj*;*bin*;*wwwroot/lib*;*.scannerwork*"
-
-      # --- FIX 1: Use 'jf dotnet' to capture the dependency tree ---
-      - name: 📦 Restore & Build .NET application (JFrog Wrapped)
+      - name: ⚙️ Configure JFrog .NET
         run: |
-          # 1. Create the config file for the dotnet wrapper
-          # Replace 'nuget-virtual' with the name of your NuGet repository in JFrog
-          jf dotnet-config --repo-resolve=nuget-virtual
-          
-          # 2. Now jf dotnet will work
+          # Same as 'jf mvnc' - tells the CLI where to resolve packages
+          jf dotnet-config --repo-resolve=${{ env.NUGET_REPO }}
+
+      - name: 📦 Build, Capture Dependencies & Upload
+        run: |
+          # Captures the dependency tree (SCA) exactly like 'jf mvn clean install'
           jf dotnet restore SimpleWebApp.csproj --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
           jf dotnet build SimpleWebApp.csproj --no-restore --configuration Release --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
-
-      - name: 📂 Publish .NET App (Create Artifact)
-        run: dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
-
-      - name: 🚀 Upload to Artifactory
-        run: |
+          
+          # Create the deployable package
+          dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
+          
+          # Upload artifacts to Artifactory
           jf rt upload "publish_output/*" \
             "${{ env.ARTIFACTORY_REPO }}/SimpleWebApp/${{ github.run_number }}/" \
-            --flat=false \
             --build-name=${{ env.BUILD_NAME }} \
             --build-number=${{ github.run_number }}
 
@@ -74,7 +64,9 @@ jobs:
 
       - name: 🔒 Xray Build Scan
         if: success()
-        run: jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
+        run: |
+          # This triggers the server-side Xray scan against your Watch/Policy
+          jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
 
       - name: 🚨 Security Gate Evaluation
         if: failure() 
