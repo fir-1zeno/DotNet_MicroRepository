@@ -9,19 +9,17 @@ on:
 
 env:
   JFROG_URL: 'https://trial9cn0pa.jfrog.io'
-  ARTIFACTORY_REPO: 'dotnet-generic-local' # Generic repo for the .dlls
-  NUGET_REPO: 'nuget-local'              # Replace with your actual NuGet repo name
+  ARTIFACTORY_REPO: 'dotnet-generic-local'
   BUILD_NAME: 'SIT-simple-web-app'
   XRAY_WATCH: 'firdaus-watches'
-  JF_USER: 'firdaus.ghazali@izeno.com'
 
 jobs:
   build-and-scan:
     runs-on: ubuntu-latest
-    environment: JFROG_PASSWORD
+    # Removed the incorrect environment secret line
 
     steps:
-      - name: 🏗️ Checkout
+      - name: 🏗️ Checkout repository
         uses: actions/checkout@v4
 
       - name: ☕ Setup .NET SDK
@@ -36,21 +34,27 @@ jobs:
           JF_USER: ${{ secrets.JFROG_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
-      - name: ⚙️ Configure JFrog .NET
-        run: |
-          # Same as 'jf mvnc' - tells the CLI where to resolve packages
-          jf dotnet-config --repo-resolve=${{ env.NUGET_REPO }}
+      # --- STEP 1: SAST & SECRETS SCAN (Finds your intentional code bugs) ---
+      #- name: 🔍 Scan Source Code (SAST)
+      #  run: |
+      #    echo "Scanning for SQLi, XSS, and hardcoded secrets..."
+      #    jf scan ./ --sast=true --secrets=true --exclusions="*.git*,*obj*,*bin*,*wwwroot/lib*"
 
-      - name: 📦 Build, Capture Dependencies & Upload
+      # --- STEP 2: SCA AUDIT (Finds vulnerable NuGet packages) ---
+      - name: 📦 Audit Dependencies (SCA)
         run: |
-          # Captures the dependency tree (SCA) exactly like 'jf mvn clean install'
-          jf dotnet restore SimpleWebApp.csproj --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
-          jf dotnet build SimpleWebApp.csproj --no-restore --configuration Release --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
-          
-          # Create the deployable package
+          echo "Restoring project to generate dependency graph..."
+          dotnet restore SimpleWebApp.csproj
+          echo "Running Xray Audit..."
+          # This replaces 'build-scan' and is much more reliable for .NET
+          jf audit --dotnet --fail=true --watches=${{ env.XRAY_WATCH }}
+
+      # --- STEP 3: BUILD & UPLOAD ---
+      - name: 🛠️ Build and Upload Artifacts
+        run: |
+          dotnet build SimpleWebApp.csproj --no-restore --configuration Release
           dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
           
-          # Upload artifacts to Artifactory
           jf rt upload "publish_output/*" \
             "${{ env.ARTIFACTORY_REPO }}/SimpleWebApp/${{ github.run_number }}/" \
             --build-name=${{ env.BUILD_NAME }} \
@@ -62,17 +66,11 @@ jobs:
           jf rt build-collect-env ${{ env.BUILD_NAME }} ${{ github.run_number }}
           jf rt build-publish ${{ env.BUILD_NAME }} ${{ github.run_number }}
 
-      - name: 🔒 Xray Build Scan
-        if: success()
-        run: |
-          # This triggers the server-side Xray scan against your Watch/Policy
-          jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
-
       - name: 🚨 Security Gate Evaluation
         if: failure() 
         run: |
           echo "========================================="
           echo "❌ SECURITY GATE: FAILED ❌"
           echo "========================================="
-          echo "Scanning failed because critical security vulnerabilities were detected!"
+          echo "Vulnerabilities or Secrets were detected!"
           exit 1
