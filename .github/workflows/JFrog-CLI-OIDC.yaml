@@ -19,7 +19,7 @@ jobs:
         env:
           JF_URL: https://trial9cn0pa.jfrog.io
         with:
-          oidc-provider-name: fir-1zeno/DotNet_MicroRepository@github
+          oidc-provider-name: microrepository
 
       - name: Run JFrog CLI
         run: |
