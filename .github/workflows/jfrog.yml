@@ -17,6 +17,11 @@ jobs:
   build-and-scan:
     runs-on: ubuntu-latest
     environment: JFROG_PASSWORD
+    
+    # ✅ ADDED: Required permissions so JFrog CLI can push SAST alerts directly to GitHub's Security tab
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
       # ---------------------------
@@ -71,15 +76,24 @@ jobs:
           JF_URL: ${{ env.JFROG_URL }}
           JF_USER: ${{ secrets.JFROG_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
+          # ✅ ADDED: Required for JFrog to upload SAST results to GitHub Code Scanning
+          JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # ---------------------------
-      # 5. Configure JFrog
+      # 5. JFrog SAST & Source Code Scan
+      # ---------------------------
+      - name: 🕵️‍♂️ JFrog SAST Scan
+        # ✅ ADDED: Scans the source code for SAST, Secrets, and IaC vulnerabilities
+        run: jf scan
+
+      # ---------------------------
+      # 6. Configure JFrog
       # ---------------------------
       - name: ⚙️ Configure JFrog .NET
         run: jf dotnet-config --repo-resolve=${{ env.NUGET_REPO }}
 
       # ---------------------------
-      # 6. Build (JFrog tracking)
+      # 7. Build (JFrog tracking)
       # ---------------------------
       - name: 📦 Build & Capture "Recipe"
         run: |
@@ -89,7 +103,7 @@ jobs:
           dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
 
       # ---------------------------
-      # 7. Upload Artifact
+      # 8. Upload Artifact
       # ---------------------------
       - name: 🚀 Upload Artifact to Artifactory
         run: |
@@ -99,7 +113,7 @@ jobs:
             --build-number=${{ github.run_number }}
 
       # ---------------------------
-      # 8. Xray Scan
+      # 9. Xray Scan
       # ---------------------------
       - name: 📊 Publish Build Info & Scan
         run: |
@@ -107,7 +121,7 @@ jobs:
           jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
 
       # ---------------------------
-      # 9. Security Gate
+      # 10. Security Gate
       # ---------------------------
       - name: 🚨 Security Gate
         if: failure()
@@ -115,5 +129,5 @@ jobs:
           echo "========================================="
           echo "❌ SECURITY GATE: FAILED ❌"
           echo "========================================="
-          echo "Issues found in SonarQube or Xray scan!"
+          echo "Issues found in SonarQube, JFrog SAST, or Xray scan!"
           exit 1
