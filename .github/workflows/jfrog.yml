@@ -1,0 +1,133 @@
+name: SonarQube + JFrog Artifact Scan & Upload
+
+on:
+  push:
+    branches: [ "sit" ]
+  workflow_dispatch:
+
+env:
+  JFROG_URL: 'https://trial9cn0pa.jfrog.io'
+  ARTIFACTORY_REPO: 'dotnet-generic-local'
+  NUGET_REPO: 'nuget-local'
+  BUILD_NAME: 'SIT-simple-web-app'
+  XRAY_WATCH: 'firdaus-watches'
+  SONAR_HOST_URL: 'http://3.0.10.146:9000'
+
+jobs:
+  build-and-scan:
+    runs-on: ubuntu-latest
+    environment: JFROG_PASSWORD
+    
+    # ✅ ADDED: Required permissions so JFrog CLI can push SAST alerts directly to GitHub's Security tab
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      # ---------------------------
+      # 1. Checkout
+      # ---------------------------
+      - name: 🏗️ Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # ✅ fix Sonar warning
+
+      # ---------------------------
+      # 2. Setup .NET (MUST BE FIRST)
+      # ---------------------------
+      - name: ☕ Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # ---------------------------
+      # 3. SonarQube (RUN FIRST LOGICALLY)
+      # ---------------------------
+      - name: Install SonarScanner for .NET
+        run: dotnet tool install --global dotnet-sonarscanner
+
+      - name: Add .NET tools to PATH
+        run: echo "$HOME/.dotnet/tools" >> $GITHUB_PATH
+
+      - name: 🔍 SonarQube Begin
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner begin \
+            /k:"vuln-dotnet-app" \
+            /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" \
+            /d:sonar.token="$SONAR_TOKEN"
+
+      - name: 🏗️ Build Project (Sonar captures this)
+        run: dotnet build SimpleWebApp.csproj
+
+      - name: ✅ SonarQube End
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
+
+      # ---------------------------
+      # 4. Setup JFrog CLI
+      # ---------------------------
+      - name: ⚙️ Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          JF_URL: ${{ env.JFROG_URL }}
+          JF_USER: ${{ secrets.JFROG_USER }}
+          JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
+          # ✅ ADDED: Required for JFrog to upload SAST results to GitHub Code Scanning
+          JF_GIT_TOKEN: ${{ secrets.HUB_TOKEN }}
+
+      # ---------------------------
+      # 5. JFrog SAST & Source Code Scan
+      # ---------------------------
+      - name: 🕵️‍♂️ JFrog SAST Scan
+        # ✅ ADDED: Scans the source code for SAST, Secrets, and IaC vulnerabilities
+        run: jf scan .
+
+      # ---------------------------
+      # 6. Configure JFrog
+      # ---------------------------
+      - name: ⚙️ Configure JFrog .NET
+        run: jf dotnet-config --repo-resolve=${{ env.NUGET_REPO }}
+
+      # ---------------------------
+      # 7. Build (JFrog tracking)
+      # ---------------------------
+      - name: 📦 Build & Capture "Recipe"
+        run: |
+          jf dotnet restore SimpleWebApp.csproj --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
+          jf dotnet build SimpleWebApp.csproj --no-restore --configuration Release --build-name=${{ env.BUILD_NAME }} --build-number=${{ github.run_number }}
+
+          dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
+
+      # ---------------------------
+      # 8. Upload Artifact
+      # ---------------------------
+      - name: 🚀 Upload Artifact to Artifactory
+        run: |
+          jf rt upload "publish_output/*" \
+            "${{ env.ARTIFACTORY_REPO }}/SimpleWebApp/${{ github.run_number }}/" \
+            --build-name=${{ env.BUILD_NAME }} \
+            --build-number=${{ github.run_number }}
+
+      # ---------------------------
+      # 9. Xray Scan
+      # ---------------------------
+      - name: 📊 Publish Build Info & Scan
+        run: |
+          jf rt build-publish ${{ env.BUILD_NAME }} ${{ github.run_number }}
+          jf build-scan --fail=true ${{ env.BUILD_NAME }} ${{ github.run_number }}
+
+      # ---------------------------
+      # 10. Security Gate
+      # ---------------------------
+      - name: 🚨 Security Gate
+        if: failure()
+        run: |
+          echo "========================================="
+          echo "❌ SECURITY GATE: FAILED ❌"
+          echo "========================================="
+          echo "Issues found in SonarQube, JFrog SAST, or Xray scan!"
+          exit 1

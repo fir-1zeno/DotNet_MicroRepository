@@ -41,7 +41,7 @@ namespace SimpleWebApp.Pages
         }
 
         // XSS vulnerability - VULNERABILITY FOR SAST TESTING
-        public int ShowComment(string comment)
+        public void ShowComment(string comment) // FIX 1: Changed return type from int to void
         {
             // In ASP.NET Core, we need to use different approach for Response.Write
             // This is still vulnerable as it outputs unencoded content
@@ -82,7 +82,7 @@ namespace SimpleWebApp.Pages
             });
         }
 
-        public void sensitiveRandom()
+        public string sensitiveRandom() // FIX 2: Changed return type from void to string
         {
             var random = new Random(); // Sensitive use of Random
             byte[] data = new byte[16];
