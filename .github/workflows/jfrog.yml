@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  JFROG_URL: 'https://trial9cn0pa.jfrog.io' # Ensure this is your correct JFrog URL
+  JFROG_URL: 'https://trial9cn0pa.jfrog.io' # Ensure this is your correct JFrog URLs
   ARTIFACTORY_REPO: 'dotnet-generic-local'   # UPDATE THIS: Change to your target Artifactory repository name
   BUILD_NAME: 'SIT-simple-web-app'
   XRAY_WATCH: 'firdaus-watches'
