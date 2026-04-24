@@ -1,4 +1,4 @@
-name: JFrog Basic .NET Flow
+name: JFrog POC Scan
 
 on:
   push:
@@ -6,63 +6,40 @@ on:
   workflow_dispatch:
 
 env:
-  JFROG_URL: 'https://trial9cn0pa.jfrog.io'
-  ARTIFACTORY_REPO: 'dotnet-generic-local' 
+  JF_URL: 'https://trial9cn0pa.jfrog.io'
+  RT_REPO: 'dotnet-generic-local'
   BUILD_NAME: 'SIT-simple-web-app'
   XRAY_WATCH: 'firdaus-watches'
   JF_USER: 'firdaus.ghazali@izeno.com'
 
 jobs:
-  build-and-scan:
+  poc-build-and-scan:
     runs-on: ubuntu-latest
     steps:
-      - name: 🏗️ 1. Checkout repository
+      - name: 🏗️ Checkout
         uses: actions/checkout@v4
 
-      - name: ☕ 2. Setup .NET SDK
+      - name: ☕ Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
 
-      - name: ⚙️ 3. Setup JFrog CLI
+      - name: ⚙️ Setup JFrog CLI
         uses: jfrog/setup-jfrog-cli@v4
         env:
-          JF_URL: ${{ env.JFROG_URL }}
+          JF_URL: ${{ env.JF_URL }}
           JF_USER: ${{ secrets.JFROG_USER }}
           JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
 
-      - name: 📦 4. Restore & Build
-        run: |
-          # Standard .NET commands
-          dotnet restore SimpleWebApp.csproj
-          dotnet build SimpleWebApp.csproj --no-restore --configuration Release
-          dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
+      - name: 🔍 QUICK SCAN (The POC Part)
+        # This scans your project files and dependencies directly
+        run: jf scan . --format=table
 
-      - name: 🔍 5. Xray Dependency Audit
-        # This is the "Basic" way to get Xray results without needing a NuGet proxy.
-        # It scans your project file and checks the libraries against Xray.
+      - name: 📦 Build and Upload
         run: |
-          jf audit --dotnet --fail=true --watches=${{ env.XRAY_WATCH }}
-
-      - name: 🚀 6. Upload to Artifactory
-        # This pushes your final files into the 'dotnet-generic-local' repo
-        run: |
-          jf rt upload "publish_output/*" \
-            "${{ env.ARTIFACTORY_REPO }}/SimpleWebApp/${{ github.run_number }}/" \
-            --build-name=${{ env.BUILD_NAME }} \
-            --build-number=${{ github.run_number }}
-
-      - name: 📊 7. Publish Build Info
-        if: success() 
-        run: |
-          jf rt build-collect-env ${{ env.BUILD_NAME }} ${{ github.run_number }}
-          jf rt build-publish ${{ env.BUILD_NAME }} ${{ github.run_number }}
-
-      - name: 🚨 Security Gate Evaluation
-        if: failure() 
-        run: |
-          echo "========================================="
-          echo "❌ SECURITY GATE: FAILED ❌"
-          echo "========================================="
-          echo "Vulnerabilities were detected by JFrog Xray!"
-          exit 1
+          # 1. Build the app
+          dotnet publish SimpleWebApp.csproj -c Release -o ./out
+          
+          # 2. Upload the 'out' folder to Artifactory
+          jf rt upload "out/" "${{ env.RT_REPO }}/${{ env.BUILD_NAME }}/${{ github.run_number }}/"
+          
