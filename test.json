@@ -1,0 +1,2 @@
+// Dummy AWS Token to test JFrog Secrets Scanner
+string myFakeAwsKey = "AKIAIOSFODNN7EXAMPLE";
