@@ -1,0 +1,81 @@
+name: .NET Build, Docker Check & JFrog Scan
+
+on:
+  push:
+    branches: [ "sit" ]
+  pull_request:
+    branches: [ "sit" ]
+  workflow_dispatch:
+
+env:
+  JFROG_URL: 'https://trial9cn0pa.jfrog.io' # Ensure this is your correct JFrog URL
+  ARTIFACTORY_REPO: 'my-generic-local'   # UPDATE THIS: Change to your target Artifactory repository name
+  BUILD_NAME: 'firdaus-security-demo-dotnet'
+  XRAY_WATCH: 'firdaus-watches'
+  JF_USER: 'firdaus.ghazali@izeno.com'
+
+jobs:
+  build-and-scan:
+    name: Build, Scan & Upload
+    runs-on: ubuntu-latest
+    # environment: JFROG_PASSWORD # Uncomment if you use GitHub Environments for secrets
+
+    steps:
+      - name: 🏗️ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: ☕ Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: ⚙️ Setup JFrog CLI
+        uses: jfrog/setup-jfrog-cli@v4
+        env:
+          # Define these in GitHub Repo Settings > Secrets and Variables > Actions
+          JF_URL: ${{ env.JFROG_URL }}
+          JF_USER: ${{ secrets.JFROG_USER }}
+          JF_PASSWORD: ${{ secrets.JFROG_PASSWORD }}
+
+      - name: 📦 Restore dependencies
+        run: dotnet restore SimpleWebApp.csproj
+
+      - name: 🛠️ Build .NET application
+        run: dotnet build SimpleWebApp.csproj --no-restore --configuration Release
+
+      # This replaces the Maven '.jar' build. It packages your app for deployment.
+      - name: 📂 Publish .NET App (Create Artifact)
+        run: dotnet publish SimpleWebApp.csproj --no-restore --configuration Release -o ./publish_output
+
+      - name: 🐳 Verify Docker build
+        run: docker build -t simplewebapp:latest .
+
+      - name: 🚀 Upload to Artifactory
+        run: |
+          # Upload the published output folder to Artifactory
+          jf rt upload "publish_output/*" \
+            "${{ env.ARTIFACTORY_REPO }}/SimpleWebApp/${{ github.run_number }}/" \
+            --flat=false \
+            --build-name=${{ env.BUILD_NAME }} \
+            --build-number=${{ github.run_number }}
+
+      - name: 📊 Publish Build Info
+        run: |
+          jf rt build-collect-env ${{ env.BUILD_NAME }} ${{ github.run_number }}
+          jf rt build-add-git ${{ env.BUILD_NAME }} ${{ github.run_number }}
+          jf rt build-publish ${{ env.BUILD_NAME }} ${{ github.run_number }}
+
+      - name: 🔒 Xray Build Scan
+        # Server-side scan: results are stored in JFrog Xray Watch Violations
+        run: jf build-scan ${{ env.BUILD_NAME }} ${{ github.run_number }} --fail=true
+
+      - name: 🔍 JFrog Xray Scan (Audit)
+        # Local scan: shows detailed results in GitHub Actions logs
+        if: always()
+        run: |
+          echo "Scanning published files..."
+          jf scan "publish_output/*"
+          
+          echo "Running audit on .NET project dependencies..."
+          # jf audit automatically detects the .csproj file and scans all NuGet dependencies
+          jf audit --watches=${{ env.XRAY_WATCH }}
