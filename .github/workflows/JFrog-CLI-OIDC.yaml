@@ -24,4 +24,4 @@ jobs:
       - name: Run JFrog CLI
         run: |
           # Ping the server
-          jf scan . --secrets
+          jf audit --sca --sast --iac --secrets .
